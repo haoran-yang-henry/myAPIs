@@ -1,0 +1,23 @@
+# Workspace root: every shared lib and service is its own package, locked together in uv.lock.
+[tool.uv.workspace]
+members = ["libs/*", "services/*"]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.14",
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["libs", "services"]
+# Services all have tests/test_main.py; importlib mode keeps them from colliding.
+addopts = ["--import-mode=importlib"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["libs/*/src", "services/*/src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

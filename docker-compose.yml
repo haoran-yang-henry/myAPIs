@@ -1,0 +1,63 @@
+# Run every service locally from the same images Cloud Run uses:
+#   docker compose up --build
+# Each service listens on 8080 inside its container; give each one its own host port.
+services:
+  template:
+    build:
+      context: .
+      dockerfile: services/_template/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "8001:8080"
+
+  transcriber:
+    build:
+      context: .
+      dockerfile: services/transcriber/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - transcriber-data:/data
+    ports:
+      - "8002:8080"
+
+  knowledge:
+    build:
+      context: .
+      dockerfile: services/knowledge/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://knowledge:knowledge@postgres:5432/knowledge
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8003:8080"
+
+  # Postgres with pgvector, for knowledge. Host port 5434 avoids other local databases.
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg17
+    environment:
+      POSTGRES_USER: knowledge
+      POSTGRES_PASSWORD: knowledge
+      POSTGRES_DB: knowledge
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U knowledge"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  transcriber-data:
+  postgres-data:

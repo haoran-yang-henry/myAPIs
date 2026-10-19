@@ -1,0 +1,13 @@
+[project]
+name = "myapis-common"
+version = "0.1.0"
+description = "Shared building blocks for myAPIs services: app factory, auth, logging, errors, settings."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "pydantic-settings>=2.6",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.2,<0.13.0"]
+build-backend = "uv_build"

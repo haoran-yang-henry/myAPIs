@@ -1,0 +1,16 @@
+[project]
+name = "template-svc"
+version = "0.1.0"
+description = "Template for new services. Copy it with scripts/new-service.sh."
+requires-python = ">=3.12"
+dependencies = [
+    "myapis-common",
+    "uvicorn[standard]>=0.32",
+]
+
+[tool.uv.sources]
+myapis-common = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.12.2,<0.13.0"]
+build-backend = "uv_build"
