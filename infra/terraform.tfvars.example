@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (not committed) and set your values.
+project_id = "PROJECT_ID"
+
+# region = "europe-west1"
+
+# Turns on keyless deploys from GitHub Actions for this repository.
+# github_repo = "OWNER/myAPIs"

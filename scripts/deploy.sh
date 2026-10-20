@@ -2,7 +2,7 @@
 # Build one service's image, push it to Artifact Registry and deploy it to Cloud Run.
 # Usage: scripts/deploy.sh <service>
 # Project and region come from GCP_PROJECT/GCP_REGION, or else from gcloud's config
-# (gcloud config set project ... / run/region ...). Run scripts/setup-gcp.sh once first.
+# (gcloud config set project ... / run/region ...). Set up infra/ once first (AGENTS.md).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

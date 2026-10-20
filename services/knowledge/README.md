@@ -97,5 +97,5 @@ Without `TEST_DATABASE_URL`, the tests that need a database are skipped; CI runs
 ## Deploy
 
 1. Create a project on [Neon](https://neon.tech) and copy its **direct** connection string: in the **Connect** dialog, turn off **Connection pooling**, so the host doesn't contain `-pooler`. The service creates its tables at startup and holds connections open, and Neon requires a direct connection for both. The service creates the pgvector extension on its first start.
-2. Run `scripts/setup-gcp.sh` from the repository root. It asks for the connection string, removes `-pooler` from it if you paste the pooled one, and stores it in Secret Manager.
+2. After applying `infra/` (see the repository's `AGENTS.md`), run `scripts/set-secrets.sh` from the repository root. It asks for the connection string, removes `-pooler` from it if you paste the pooled one, and stores it in Secret Manager.
 3. Deploy with `scripts/deploy.sh knowledge`.

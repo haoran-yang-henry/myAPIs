@@ -40,15 +40,14 @@ Each service's README documents its API: [transcriber](services/transcriber/READ
 
 ## Deploy to Cloud Run
 
-Needs a Google Cloud project with billing, a Neon database, and `gcloud` signed in with the project selected:
+Needs a Google Cloud project with billing, a Neon database, Terraform, and `gcloud` signed in with the project selected. The Terraform configuration in `infra/` creates the image repository, the upload bucket, a runtime account limited to those resources, and the secrets; [AGENTS.md](AGENTS.md#one-time-setup) walks through that one-time setup. Then deploy each service:
 
 ```bash
-scripts/setup-gcp.sh
 scripts/deploy.sh transcriber
 scripts/deploy.sh knowledge
 ```
 
-`setup-gcp.sh` creates the image repository, the upload bucket, a runtime account limited to those resources, and the secrets, asking for the OpenAI key and the Neon connection string. Each service gets an HTTPS URL, and every request to `/v1` needs an `X-API-Key`.
+Each service gets an HTTPS URL, and every request to `/v1` needs an `X-API-Key`.
 
 ## Notes
 

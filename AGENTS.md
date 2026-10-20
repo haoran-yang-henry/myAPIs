@@ -20,9 +20,10 @@ myAPIs/
 │       ├── tests/
 │       ├── Dockerfile      # build context is the repository root
 │       └── deploy.env      # Cloud Run resources: memory, timeout, concurrency, instance cap, secrets
+├── infra/                  # Terraform for the Google Cloud resources (not the Cloud Run services)
 ├── scripts/
 │   ├── new-service.sh      # create a service from the template
-│   ├── setup-gcp.sh        # one-time GCP setup, safe to rerun
+│   ├── set-secrets.sh      # put secret values into Secret Manager
 │   └── deploy.sh           # build and deploy one service
 ├── .github/workflows/      # ci.yml: lint and tests; deploy.yml: deploys only the services that changed
 ├── docker-compose.yml      # runs the services and Postgres locally, from the images Cloud Run uses
@@ -79,24 +80,63 @@ Then:
 
 ### One-time setup
 
-You need a Google Cloud project with billing, a Neon database (its direct connection string, without `-pooler`), and an OpenAI API key.
+You need a Google Cloud project with billing, a Neon database (its direct connection string, without `-pooler`), an OpenAI API key, and Terraform 1.11 or later. `PROJECT_ID` below is your Google Cloud project ID.
+
+1. Sign in and pick the project. Terraform uses the application-default credentials.
+
+   ```bash
+   gcloud auth login
+   gcloud auth application-default login
+   gcloud config set project PROJECT_ID
+   gcloud config set run/region europe-west1
+   ```
+
+2. Create the bucket for the Terraform state, the one resource made by hand. Versioning keeps earlier states recoverable.
+
+   ```bash
+   gcloud storage buckets create gs://PROJECT_ID-tfstate --location europe-west1 \
+     --uniform-bucket-level-access --public-access-prevention
+   gcloud storage buckets update gs://PROJECT_ID-tfstate --versioning
+   ```
+
+3. Create everything else. Set `project_id` in `infra/terraform.tfvars` after copying it.
+
+   ```bash
+   cp infra/terraform.tfvars.example infra/terraform.tfvars
+   terraform -chdir=infra init -backend-config="bucket=PROJECT_ID-tfstate"
+   terraform -chdir=infra apply
+   ```
+
+4. Put the secret values in and sign Docker in to the image repository.
+
+   ```bash
+   scripts/set-secrets.sh
+   gcloud auth configure-docker europe-west1-docker.pkg.dev
+   ```
+
+`infra/` manages:
+
+- the APIs the services need
+- the image repository, which keeps the 3 newest images of each service
+- the transcriber bucket, which deletes leftover files after 7 days
+- `myapis-runtime`, the service account the services run as, which can read the three secrets and use the bucket, and nothing else
+- the secrets `myapis-api-keys`, `myapis-openai-key`, and `myapis-knowledge-db-url`, without their values
+- with `github_repo` set, the deployer account and Workload Identity Federation for GitHub Actions
+
+Terraform stores every value it manages in its state in plain text, so the secret values stay out of it: [set-secrets.sh](scripts/set-secrets.sh) generates the API keys (one per caller, such as `recorder:<key>`) and asks for the OpenAI key and the Neon connection string without echoing them. It skips any secret that already has a value.
+
+The Cloud Run services themselves aren't in Terraform: every deploy changes the image, and `scripts/deploy.sh` and CI own that.
+
+### Change infrastructure
+
+Edit the files in `infra/`, then review and apply:
 
 ```bash
-gcloud auth login
-gcloud config set project PROJECT_ID
-gcloud config set run/region europe-west1        # optional; this is the default
-scripts/setup-gcp.sh
+terraform -chdir=infra plan
+terraform -chdir=infra apply
 ```
 
-`PROJECT_ID` is your Google Cloud project ID. [setup-gcp.sh](scripts/setup-gcp.sh) is safe to rerun; each run creates only what is missing. It:
-
-- enables the APIs it needs and creates the image repository, which keeps the 3 newest images of each service
-- creates the transcriber bucket, which deletes leftover files after 7 days
-- creates `myapis-runtime`, the service account the services run as, which can read the three secrets below and use the bucket, and nothing else
-- creates three secrets: `myapis-api-keys` (generated, one key per caller, such as `recorder:<key>`), `myapis-openai-key`, and `myapis-knowledge-db-url`; the first run asks for the last two without echoing them
-- signs local Docker in to the image repository
-
-The project ID and region live only in gcloud's config, never in the repository.
+`plan` also shows anything changed by hand in the console since the last apply.
 
 ### Deploy one service by hand
 
@@ -109,13 +149,15 @@ scripts/deploy.sh knowledge
 
 On a push to `main`, the tests run, then only the services that changed are deployed; a change to `libs/` or `uv.lock` redeploys all of them. You can also deploy a single service from the **Actions** tab.
 
-To turn this on, run once:
+To turn this on, set `github_repo = "haoran-yang-henry/myAPIs"` in `infra/terraform.tfvars` and apply. That creates a deployer account and [Workload Identity Federation](https://github.com/google-github-actions/auth#preferred-direct-workload-identity-federation), so GitHub Actions signs in to Google Cloud without a stored key, and only from this repository. Then copy the four values `deploy.yml` reads into the repository's variables:
 
 ```bash
-GITHUB_REPO=haoran-yang-henry/myAPIs scripts/setup-gcp.sh
+terraform -chdir=infra output -json github_actions_variables \
+  | python3 -c 'import json, sys; [print(k, v) for k, v in json.load(sys.stdin).items()]' \
+  | while read -r name value; do gh variable set "$name" --repo haoran-yang-henry/myAPIs --body "$value"; done
 ```
 
-It sets up [Workload Identity Federation](https://github.com/google-github-actions/auth#preferred-direct-workload-identity-federation), so GitHub Actions signs in to Google Cloud without a stored key, and only from this repository. It then writes `GCP_PROJECT`, `GCP_REGION`, `GCP_WIF_PROVIDER`, and `GCP_DEPLOY_SA` to the repository's variables. Without those variables, CI runs the tests and deploys nothing.
+Without those variables, CI runs the tests and deploys nothing.
 
 ### Authentication
 

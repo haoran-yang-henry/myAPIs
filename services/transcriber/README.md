@@ -58,6 +58,6 @@ The script talks to `TRANSCRIBER_URL` (default `http://localhost:8000`) and send
 
 ## Deploy
 
-`scripts/setup-gcp.sh` at the repository root creates the bucket and stores the OpenAI key once; then deploy with `scripts/deploy.sh transcriber`. The bucket deletes leftover files after 7 days, transcripts included, so fetch each transcript soon after it's done.
+The Terraform configuration in `infra/` creates the bucket, and `scripts/set-secrets.sh` stores the OpenAI key (see the repository's `AGENTS.md`); then deploy with `scripts/deploy.sh transcriber`. The bucket deletes leftover files after 7 days, transcripts included, so fetch each transcript soon after it's done.
 
 The service runs as a single instance. Jobs run inside the process, and the storage mount caches file metadata per instance, so two instances could see a recording in different states. One instance covers personal use.

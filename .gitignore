@@ -16,3 +16,8 @@ build/
 .claude/skills/
 .agents/
 skills-lock.json
+# Terraform: provider cache and per-project values; the state lives in GCS.
+infra/.terraform/
+infra/terraform.tfvars
+*.tfstate
+*.tfstate.*
